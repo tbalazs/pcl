@@ -5,6 +5,14 @@
 (remove-if-not #'evenp '(1 2 3 4 5 6 7 8 9 10))
 (remove-if-not #'(lambda (x) (= 0 (mod x 2))) '(1 2 3 4 5 6 7 8 9 10))
 
+(defun foo (a b c) (list a b c))
+(defun foo (&key a b c) (list a b c))
+(foo :a 1 :b 2 :c 3)
+(foo :c 3 :b 2 :a 1)
+(foo :a 1 :c 3)
+(foo)
+(defun foo (&key a (b 20) (c 30 c-p)) (list a b c c-p))
+
 ; cd database
 (defun make-cd (title artist rating ripped)
   (list :title title :artist artist :rating rating :ripped ripped))
@@ -56,6 +64,14 @@
 (defun artist-selector (artist)
   #'(lambda (cd) (equal (getf cd :artist) artist)))
 
+(defun where (&key title artist rating (ripped nil ripped-p))
+  #'(lambda (cd)
+      (and
+       (if title    (equal (getf cd :title) title)   t)
+       (if artist   (equal (getf cd :artist) artist) t)
+       (if rating   (equal (getf cd :rating) rating) t)
+       (if ripped-p (equal (getf cd :ripped) ripped) t))))
+
 ; tests
 (make-cd "Roses" "kathy Mattea" 7 t)
 
@@ -73,3 +89,10 @@
 ; selector function
 (select (artist-selector "Dixie Chicks"))
 
+; 
+(select (where :artist "Dixie Chicks"))
+
+(select 
+ (and 
+  (where :artist "Dixie Chicks") 
+  (where :title "Home")))
