@@ -13,6 +13,29 @@
 (foo)
 (defun foo (&key a (b 20) (c 30 c-p)) (list a b c c-p))
 
+; macro thingy
+(defmacro backwards (expr) (reverse expr))
+
+(backwards ("hello, world" t format))
+
+; version 1
+(defun make-comparison-expr (field value)
+  (list 'equal (list 'getf 'cd field) value))
+
+; version 2
+(defun make-comparison-expr (field value)
+  `(equal (getf cd ,field) ,value))
+
+(defun make-comparisons-list (fields)
+  (loop while fields
+       collecting (make-comparison-expr (pop fields) (pop fields))))
+
+(defmacro where (&rest clauses)
+  `#'(lambda (cd) (and ,@(make-comparisons-list clauses))))
+
+(macroexpand-1 '(where :title "Home" :ripped nil))
+(select (where :title "Home" :ripped t))
+
 ; cd database
 (defun make-cd (title artist rating ripped)
   (list :title title :artist artist :rating rating :ripped ripped))
@@ -72,6 +95,21 @@
        (if rating   (equal (getf cd :rating) rating) t)
        (if ripped-p (equal (getf cd :ripped) ripped) t))))
 
+(defun update (selector-fn &key title artist rating (ripped nil ripped-p))
+  (setf *db*
+	(mapcar
+	 #'(lambda (row)
+	     (when (funcall selector-fn row)
+	       (if title    (setf (getf row :title) title))
+	       (if artist   (setf (getf row :artist) artist))
+	       (if rating   (setf (getf row :rating) rating))
+	       (if ripped-p (setf (getf row :ripped) ripped)))
+	     row) *db*)))
+
+(defun delete-rows (selector-fn)
+  (setf *db* (remove-if selector-fn *db*)))
+
+
 ; tests
 (make-cd "Roses" "kathy Mattea" 7 t)
 
@@ -96,3 +134,12 @@
  (and 
   (where :artist "Dixie Chicks") 
   (where :title "Home")))
+
+(select
+ #'(lambda (cd)
+     (and (equal (getf cd :title) "Give Us a Break")
+	  (equal (getf cd :ripped) t))))
+
+; update
+(update (where :artist "Dixie Chicks") :rating 11)
+(update (where :artist "Dixie Chicks") :ripped t)
